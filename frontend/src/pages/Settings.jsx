@@ -1,0 +1,2 @@
+function Settings() { return <div className="page-container"><div className="page-heading"><div><p className="eyebrow">PREFERENCES</p><h1>Settings</h1><p className="lead-copy">Manage your StudentDrive workspace.</p></div></div><section className="panel settings-panel"><h2>Profile</h2><label>Display name<input defaultValue="Deva Sri" /></label><label>Email<input defaultValue="deva@example.com" /></label><button className="primary-button">Save changes</button></section></div>; }
+export default Settings;

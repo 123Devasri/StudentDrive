@@ -1,0 +1,4 @@
+import TopicStatus from '../components/TopicStatus';
+import { syllabusUnits } from '../data/mockData';
+function Syllabus() { return <div className="page-container"><div className="page-heading"><div><p className="eyebrow">DATA STRUCTURES</p><h1>Syllabus</h1><p className="lead-copy">Turn your syllabus into a clear, actionable study plan.</p></div><div className="coverage-pill"><strong>78%</strong><span>covered</span></div></div>{syllabusUnits.map((unit) => <section className="panel syllabus-unit" key={unit.name}><div className="unit-heading"><div><span className="eyebrow">UNIT {syllabusUnits.indexOf(unit) + 1}</span><h2>{unit.name}</h2></div><strong>{unit.coverage}%</strong></div><div className="progress"><div className="progress-bar" style={{ width: `${unit.coverage}%` }} /></div>{unit.topics.map((topic) => <TopicStatus key={topic.name} topic={topic} />)}</section>)}</div>; }
+export default Syllabus;
