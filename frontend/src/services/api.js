@@ -8,6 +8,21 @@ export async function checkBackend() {
 	return response.json();
 }
 
+async function request(path, options = {}) {
+	const response = await fetch(`${BASE_URL}${path}`, {
+		headers: { 'Content-Type': 'application/json', ...options.headers },
+		...options,
+	});
+	const data = await response.json();
+	if (!response.ok) throw new Error(data.message || 'Request failed');
+	return data;
+}
+
+export function registerUser(data) { return request('/auth/register', { method: 'POST', body: JSON.stringify(data) }); }
+export function loginUser(data) { return request('/auth/login', { method: 'POST', body: JSON.stringify(data) }); }
+export function getCurrentUser(token) { return request('/auth/me', { headers: { Authorization: `Bearer ${token}` } }); }
+export function logoutUser(token) { return request('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); }
+
 // These functions mirror the future REST API and use mock data for now.
 export async function getSubjects() { return subjects; }
 export async function getSubject(id) { return subjects.find((subject) => subject.id === Number(id)); }

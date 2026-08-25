@@ -9,11 +9,17 @@ import StudyAssistant from './pages/StudyAssistant';
 import Analytics from './pages/Analytics';
 import Quiz from './pages/Quiz';
 import Settings from './pages/Settings';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/subjects" element={<Subjects />} />
         <Route path="/subjects/:id" element={<SubjectDetails />} />
@@ -23,6 +29,7 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/quiz" element={<Quiz />} />
         <Route path="/settings" element={<Settings />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
