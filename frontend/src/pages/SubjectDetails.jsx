@@ -1,5 +1,42 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import TopicStatus from '../components/TopicStatus';
-import { subjects, syllabusUnits } from '../data/mockData';
-function SubjectDetails() { const { id } = useParams(); const subject = subjects.find((item) => item.id === Number(id)) || subjects[0]; return <div className="page-container"><div className="detail-hero"><div><Link to="/subjects" className="back-link"><i className="bi bi-arrow-left" /> All subjects</Link><h1>{subject.name}</h1><p className="lead-copy">Exam: {subject.examDate}</p></div><div className="hero-score"><span>Overall coverage</span><strong>{subject.coverage}%</strong><div className="progress thin"><div className="progress-bar" style={{ width: `${subject.coverage}%` }} /></div></div></div><div className="detail-grid"><section className="panel"><div className="section-header"><div><h2>Syllabus progress</h2><p>Coverage by unit based on your resources.</p></div></div>{syllabusUnits.map((unit) => <div className="unit-progress" key={unit.name}><div className="progress-meta"><strong>{unit.name}</strong><span>{unit.coverage}%</span></div><div className="progress"><div className="progress-bar" style={{ width: `${unit.coverage}%` }} /></div></div>)}</section><section className="panel recommended"><span className="eyebrow">UP NEXT</span><h2>Recommended next</h2><p>Close your biggest knowledge gaps in this order.</p>{['Graphs', 'BFS', 'DFS'].map((topic, index) => <div className="recommend-row" key={topic}><span>0{index + 1}</span><strong>{topic}</strong><i className="bi bi-arrow-up-right" /></div>)}</section></div><section className="panel topic-panel"><div className="section-header"><div><h2>Topic status</h2><p>Material available is a starting point, not mastery.</p></div></div>{syllabusUnits.flatMap((unit) => unit.topics).map((topic) => <TopicStatus key={topic.name} topic={topic} />)}</section></div>; }
+import { getSubject } from '../services/api';
+
+function SubjectDetails() {
+	const { id } = useParams();
+	const [subject, setSubject] = useState(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState('');
+
+	useEffect(() => {
+		async function loadSubject() {
+			try {
+				const response = await getSubject(id);
+				setSubject(response.subject);
+			} catch (requestError) {
+				setError('Unable to load subject.');
+			} finally {
+				setLoading(false);
+			}
+		}
+		loadSubject();
+	}, [id]);
+
+	if (loading) return <div className="page-container"><p className="text-muted">Loading subject...</p></div>;
+	if (error) return <div className="page-container"><div className="alert alert-danger">{error}</div><Link to="/subjects">Back to subjects</Link></div>;
+
+	return (
+		<div className="page-container">
+			<Link to="/subjects" className="back-link"><i className="bi bi-arrow-left" /> All subjects</Link>
+			<section className="panel mt-4">
+				<h1>{subject.name}</h1>
+				<p className="lead-copy">{subject.description || 'No description'}</p>
+				<p className="mt-4">Code: {subject.code || 'Not provided'}</p>
+				<p>Semester: {subject.semester}</p>
+				<p>Exam date: {subject.examDate ? subject.examDate.slice(0, 10) : 'Not provided'}</p>
+			</section>
+		</div>
+	);
+}
+
 export default SubjectDetails;
