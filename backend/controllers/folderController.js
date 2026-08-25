@@ -30,7 +30,9 @@ export async function updateFolder(request, response, next) {
 
 export async function deleteFolder(request, response, next) {
 	try {
-		if (!await removeFolder(request.params.id, request.user.id)) return response.status(404).json({ success: false, message: 'Folder not found' });
+		const result = await removeFolder(request.params.id, request.user.id);
+		if (result.hasResources) return response.status(409).json({ success: false, message: 'Move or delete the folder resources before deleting this folder' });
+		if (!result.deleted) return response.status(404).json({ success: false, message: 'Folder not found' });
 		response.json({ success: true, message: 'Folder deleted successfully' });
 	} catch (error) { next(error); }
 }

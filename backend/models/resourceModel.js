@@ -10,7 +10,10 @@ export async function findResourcesByUserId(userId, filters = {}) {
   }
   if (filters.subjectId) { conditions.push('r.subject_id = ?'); parameters.push(filters.subjectId); }
   if (filters.folderId) { conditions.push('r.folder_id = ?'); parameters.push(filters.folderId); }
-  if (filters.tag) { conditions.push('EXISTS (SELECT 1 FROM resource_tags rst3 JOIN tags t3 ON t3.id = rst3.tag_id WHERE rst3.resource_id = r.id AND t3.user_id = ? AND t3.name = ?)'); parameters.push(userId, filters.tag); }
+  if (filters.tag) {
+    conditions.push('EXISTS (SELECT 1 FROM resource_tags rst3 JOIN tags t3 ON t3.id = rst3.tag_id WHERE rst3.resource_id = r.id AND t3.user_id = ? AND (t3.name = ? OR t3.id = ?))');
+    parameters.push(userId, filters.tag, filters.tag);
+  }
   if (filters.fileType) { conditions.push('LOWER(r.file_type) = LOWER(?)'); parameters.push(filters.fileType); }
   const [rows] = await pool.execute(`SELECT r.id, r.original_name AS originalName, r.file_type AS fileType,
     r.file_size AS fileSize, r.subject_id AS subjectId, s.name AS subjectName,
@@ -47,6 +50,17 @@ export async function createResource(resource) {
     (user_id, subject_id, folder_id, original_name, stored_name, file_type, file_size, file_path, description)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [userId, subjectId, folderId || null, originalName, storedName, fileType, fileSize, filePath, description || null]);
   return findResourceById(result.insertId, userId);
+}
+
+export async function addTagsToResource(resourceId, userId, tagIds) {
+  const uniqueTagIds = [...new Set((tagIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  if (!uniqueTagIds.length) return;
+  const placeholders = uniqueTagIds.map(() => '?').join(', ');
+  const [validTags] = await pool.execute(`SELECT id FROM tags WHERE user_id = ? AND id IN (${placeholders})`, [userId, ...uniqueTagIds]);
+  if (validTags.length !== uniqueTagIds.length) throw new Error('One or more tags are invalid');
+  for (const tagId of uniqueTagIds) {
+    await pool.execute('INSERT IGNORE INTO resource_tags (resource_id, tag_id) SELECT id, ? FROM resources WHERE id = ? AND user_id = ?', [tagId, resourceId, userId]);
+  }
 }
 
 export async function updateResource(resourceId, userId, subjectId, folderId, description) {

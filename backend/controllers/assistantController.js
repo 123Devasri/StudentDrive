@@ -16,7 +16,16 @@ export async function askAssistant(request, response, next) {
     response.json({ success: true, answer, sources: [] });
   } catch (error) {
     if (error.name === 'AbortError') return response.status(504).json({ success: false, message: 'AI request timed out' });
-    if (error.message === 'LLM service is not configured' || error.message === 'LLM request failed') return response.status(503).json({ success: false, message: 'AI service is unavailable' });
+    if (error.statusCode) {
+      return response.status(error.statusCode).json({
+        success: false,
+        message: error.providerMessage || error.message || 'LLM request failed',
+        errorType: error.errorType,
+      });
+    }
+    if (error.message === 'LLM service is not configured') {
+      return response.status(503).json({ success: false, message: 'AI service is not configured' });
+    }
     next(error);
   }
 }

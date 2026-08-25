@@ -1,7 +1,10 @@
 import pool from '../config/db.js';
 
 export async function findFoldersByUserId(userId) {
-  const [rows] = await pool.execute('SELECT id, user_id AS userId, subject_id AS subjectId, name, created_at AS createdAt FROM folders WHERE user_id = ? ORDER BY name', [userId]);
+  const [rows] = await pool.execute(`SELECT f.id, f.user_id AS userId, f.subject_id AS subjectId, f.name,
+    f.created_at AS createdAt, COUNT(r.id) AS resourceCount FROM folders f
+    LEFT JOIN resources r ON r.folder_id = f.id AND r.user_id = f.user_id
+    WHERE f.user_id = ? GROUP BY f.id ORDER BY f.name`, [userId]);
   return rows;
 }
 
@@ -21,8 +24,10 @@ export async function updateFolder(folderId, userId, name) {
 }
 
 export async function deleteFolder(folderId, userId) {
+  const [resources] = await pool.execute('SELECT COUNT(*) AS resourceCount FROM resources WHERE folder_id = ? AND user_id = ?', [folderId, userId]);
+  if (Number(resources[0].resourceCount) > 0) return { deleted: false, hasResources: true };
   const [result] = await pool.execute('DELETE FROM folders WHERE id = ? AND user_id = ?', [folderId, userId]);
-  return result.affectedRows > 0;
+  return { deleted: result.affectedRows > 0, hasResources: false };
 }
 
 export async function findFolderResources(folderId, userId) {

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { findSubjectById } from '../models/subjectModel.js';
 import { findFolderById } from '../models/folderModel.js';
-import { createResource as insertResource, findResourceById, findResourcesByUserId, updateResource as editResource, deleteResource as removeResource } from '../models/resourceModel.js';
+import { addTagsToResource, createResource as insertResource, findResourceById, findResourcesByUserId, updateResource as editResource, deleteResource as removeResource } from '../models/resourceModel.js';
 
 function validateSubjectId(subjectId) {
 	return Number.isInteger(Number(subjectId)) && Number(subjectId) > 0;
@@ -42,7 +42,10 @@ export async function createResource(request, response, next) {
 			filePath: request.file.path,
 			description: request.body.description,
 		});
-		response.status(201).json({ success: true, resource });
+		const tagIds = Array.isArray(request.body.tagIds) ? request.body.tagIds : request.body.tagIds ? [request.body.tagIds] : [];
+		await addTagsToResource(resource.id, request.user.id, tagIds.map(Number).filter(Number.isInteger));
+		const populatedResource = await findResourceById(resource.id, request.user.id);
+		response.status(201).json({ success: true, resource: populatedResource || resource });
 	} catch (error) { if (request.file) await fs.unlink(request.file.path).catch(() => {}); next(error); }
 }
 
