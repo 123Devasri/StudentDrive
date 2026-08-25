@@ -83,3 +83,11 @@ CREATE TABLE IF NOT EXISTS syllabus_topics (
   CONSTRAINT fk_syllabus_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_syllabus_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS resource_syllabus_topics (
+  resource_id INT UNSIGNED NOT NULL,
+  syllabus_topic_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (resource_id, syllabus_topic_id),
+  CONSTRAINT fk_resource_topics_resource FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE,
+  CONSTRAINT fk_resource_topics_topic FOREIGN KEY (syllabus_topic_id) REFERENCES syllabus_topics(id) ON DELETE CASCADE
+);

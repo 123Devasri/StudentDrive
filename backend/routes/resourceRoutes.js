@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { listResources, createResource, getResource, updateResource, deleteResource, downloadResource } from '../controllers/resourceController.js';
+import { addTagToResource, removeTagFromResource } from '../controllers/tagController.js';
 
 const uploadDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../uploads');
 const allowedExtensions = new Set(['.pdf', '.ppt', '.pptx', '.doc', '.docx']);
@@ -30,6 +31,8 @@ router.use(authMiddleware);
 router.get('/', listResources);
 router.post('/', upload.single('file'), createResource);
 router.get('/:id/download', downloadResource);
+router.post('/:id/tags', addTagToResource);
+router.delete('/:id/tags/:tagId', removeTagFromResource);
 router.get('/:id', getResource);
 router.put('/:id', updateResource);
 router.delete('/:id', deleteResource);

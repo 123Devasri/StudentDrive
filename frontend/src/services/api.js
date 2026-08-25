@@ -1,5 +1,3 @@
-import { syllabusUnits, knowledgeGaps } from '../data/mockData';
-
 export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 function getToken() {
@@ -52,6 +50,32 @@ export async function getResources() {
 	return request('/resources');
 }
 
+export async function searchResources(filters = {}) {
+	const query = new URLSearchParams();
+	Object.entries(filters).forEach(([key, value]) => { if (value) query.set(key, value); });
+	return request(`/resources?${query.toString()}`);
+}
+
+export async function getFolders() { return request('/folders'); }
+export async function createFolder(folderData) { return request('/folders', { method: 'POST', body: JSON.stringify(folderData) }); }
+export async function updateFolder(folderId, folderData) { return request(`/folders/${folderId}`, { method: 'PUT', body: JSON.stringify(folderData) }); }
+export async function deleteFolder(folderId) { return request(`/folders/${folderId}`, { method: 'DELETE' }); }
+export async function getFolderResources(folderId) { return request(`/folders/${folderId}/resources`); }
+export async function getTags() { return request('/tags'); }
+export async function createTag(name) { return request('/tags', { method: 'POST', body: JSON.stringify({ name }) }); }
+export async function deleteTag(tagId) { return request(`/tags/${tagId}`, { method: 'DELETE' }); }
+export async function addTagToResource(resourceId, tagId) { return request(`/resources/${resourceId}/tags`, { method: 'POST', body: JSON.stringify({ tagId }) }); }
+export async function removeTagFromResource(resourceId, tagId) { return request(`/resources/${resourceId}/tags/${tagId}`, { method: 'DELETE' }); }
+export async function getSyllabusTopics(subjectId) { return request(`/syllabus/${subjectId}`); }
+export async function getSyllabusProgress(subjectId) { return request(`/syllabus/${subjectId}/progress`); }
+export async function createSyllabusTopic(topicData) { return request('/syllabus', { method: 'POST', body: JSON.stringify(topicData) }); }
+export async function updateSyllabusTopic(topicId, topicData) { return request(`/syllabus/${topicId}`, { method: 'PUT', body: JSON.stringify(topicData) }); }
+export async function deleteSyllabusTopic(topicId) { return request(`/syllabus/${topicId}`, { method: 'DELETE' }); }
+export async function linkResourceToTopic(topicId, resourceId) { return request(`/syllabus/topics/${topicId}/resources`, { method: 'POST', body: JSON.stringify({ resourceId }) }); }
+export async function unlinkResourceFromTopic(topicId, resourceId) { return request(`/syllabus/topics/${topicId}/resources/${resourceId}`, { method: 'DELETE' }); }
+export async function getDashboard() { return request('/dashboard'); }
+export async function askAssistant(question, subjectId) { return request('/assistant/ask', { method: 'POST', body: JSON.stringify({ question, subjectId }) }); }
+
 export async function getResource(resourceId) {
 	return request(`/resources/${resourceId}`);
 }
@@ -103,7 +127,6 @@ export function getCurrentUser(token) { return request('/auth/me', { headers: { 
 export function logoutUser(token) { return request('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); }
 
 // These functions mirror the future REST API and use mock data for now.
-export async function getSyllabus() { return syllabusUnits; }
-export async function askStudyAssistant(message, subjectId) { return { message, subjectId, answer: 'This response will come from the study assistant API once it is connected.' }; }
-export async function getAnalytics() { return knowledgeGaps; }
-export async function submitQuiz(data) { return { score: 7, total: 10, ...data }; }
+export async function getSyllabus() { return { topics: [] }; }
+export async function getAnalytics() { return { gaps: [] }; }
+export async function submitQuiz() { return { score: 0, total: 0 }; }

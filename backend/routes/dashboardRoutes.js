@@ -1,10 +1,8 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { listTags, createTag, deleteTag } from '../controllers/tagController.js';
+import { getDashboard } from '../controllers/dashboardController.js';
 
 const router = Router();
 router.use(authMiddleware);
-router.get('/', listTags);
-router.post('/', createTag);
-router.delete('/:id', deleteTag);
+router.get('/', getDashboard);
 export default router;

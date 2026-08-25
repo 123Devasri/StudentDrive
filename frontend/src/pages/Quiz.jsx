@@ -1,4 +1,19 @@
-import { useState } from 'react';
-import { quizQuestion } from '../data/mockData';
-function Quiz() { const [selected, setSelected] = useState(null); const [submitted, setSubmitted] = useState(false); return <div className="page-container quiz-page"><div className="page-heading"><div><p className="eyebrow">DATA STRUCTURES · GRAPHS</p><h1>Test your understanding</h1><p className="lead-copy">A quick check to turn review into recall.</p></div><span className="question-count">Question 1 of 10</span></div><div className="quiz-layout"><section className="panel question-panel"><div className="quiz-progress"><span style={{ width: '10%' }} /></div><h2>{quizQuestion.question}</h2><div className="options">{quizQuestion.options.map((option, index) => <button className={selected === index ? 'chosen' : ''} onClick={() => setSelected(index)} key={option}><span>{String.fromCharCode(65 + index)}</span>{option}{selected === index && <i className="bi bi-check2" />}</button>)}</div><div className="quiz-actions"><button className="secondary-button"><i className="bi bi-arrow-left" /> Previous</button>{submitted ? <strong className="score-message">Score: 7/10 · Needs revision</strong> : <button className="primary-button" onClick={() => setSubmitted(true)}>Submit quiz <i className="bi bi-arrow-right" /></button>}</div></section><aside className="panel quiz-recommendation"><i className="bi bi-lightbulb" /><span className="eyebrow">AFTER THIS QUIZ</span><h2>Keep your momentum</h2><p>Review these topics after submitting to strengthen your graph fundamentals.</p><strong>Recommended review</strong><div className="review-tags"><span>Graphs</span><span>BFS</span><span>DFS</span></div></aside></div></div>; }
+function Quiz() {
+    return (
+        <div className="page-container quiz-page">
+            <div className="page-heading">
+                <div>
+                    <p className="eyebrow">QUIZZES</p>
+                    <h1>Quizzes</h1>
+                    <p className="lead-copy">Quiz content will be available when it is connected to your syllabus.</p>
+                </div>
+            </div>
+            <div className="panel">
+                <h2>No quizzes available yet.</h2>
+                <p>There is no database-backed quiz content to display.</p>
+            </div>
+        </div>
+    );
+}
+
 export default Quiz;

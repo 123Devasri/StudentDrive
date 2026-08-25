@@ -9,6 +9,8 @@ import resourceRoutes from './routes/resourceRoutes.js';
 import folderRoutes from './routes/folderRoutes.js';
 import tagRoutes from './routes/tagRoutes.js';
 import syllabusRoutes from './routes/syllabusRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import assistantRoutes from './routes/assistantRoutes.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddleware.js';
 
 const app = express();
@@ -24,6 +26,8 @@ app.use('/api/resources', resourceRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/syllabus', syllabusRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/assistant', assistantRoutes);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 

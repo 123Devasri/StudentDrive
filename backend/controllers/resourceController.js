@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { findSubjectById } from '../models/subjectModel.js';
+import { findFolderById } from '../models/folderModel.js';
 import { createResource as insertResource, findResourceById, findResourcesByUserId, updateResource as editResource, deleteResource as removeResource } from '../models/resourceModel.js';
 
 function validateSubjectId(subjectId) {
@@ -8,7 +9,7 @@ function validateSubjectId(subjectId) {
 }
 
 export async function listResources(request, response, next) {
-	try { response.json({ success: true, resources: await findResourcesByUserId(request.user.id) }); } catch (error) { next(error); }
+	try { response.json({ success: true, resources: await findResourcesByUserId(request.user.id, request.query) }); } catch (error) { next(error); }
 }
 
 export async function getResource(request, response, next) {
@@ -25,9 +26,15 @@ export async function createResource(request, response, next) {
 		if (!validateSubjectId(request.body.subjectId)) return response.status(400).json({ success: false, message: 'A valid subject is required' });
 		const subject = await findSubjectById(request.body.subjectId, request.user.id);
 		if (!subject) { await fs.unlink(request.file.path).catch(() => {}); return response.status(404).json({ success: false, message: 'Subject not found' }); }
+		const folder = request.body.folderId ? await findFolderById(request.body.folderId, request.user.id) : null;
+		if (request.body.folderId && (!folder || (folder.subjectId !== null && folder.subjectId !== Number(request.body.subjectId)))) {
+			await fs.unlink(request.file.path).catch(() => {});
+			return response.status(404).json({ success: false, message: 'Folder not found' });
+		}
 		const resource = await insertResource({
 			userId: request.user.id,
 			subjectId: Number(request.body.subjectId),
+			folderId: request.body.folderId,
 			originalName: request.file.originalname,
 			storedName: request.file.filename,
 			fileType: path.extname(request.file.originalname).slice(1).toLowerCase(),
@@ -43,7 +50,9 @@ export async function updateResource(request, response, next) {
 	try {
 		if (!validateSubjectId(request.body.subjectId)) return response.status(400).json({ success: false, message: 'A valid subject is required' });
 		if (!await findSubjectById(request.body.subjectId, request.user.id)) return response.status(404).json({ success: false, message: 'Subject not found' });
-		const resource = await editResource(request.params.id, request.user.id, Number(request.body.subjectId), request.body.description);
+		const folder = request.body.folderId ? await findFolderById(request.body.folderId, request.user.id) : null;
+		if (request.body.folderId && (!folder || (folder.subjectId !== null && folder.subjectId !== Number(request.body.subjectId)))) return response.status(404).json({ success: false, message: 'Folder not found' });
+		const resource = await editResource(request.params.id, request.user.id, Number(request.body.subjectId), request.body.folderId, request.body.description);
 		if (!resource) return response.status(404).json({ success: false, message: 'Resource not found' });
 		response.json({ success: true, resource });
 	} catch (error) { next(error); }
