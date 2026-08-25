@@ -1,6 +1,6 @@
 # StudentDrive
 
-StudentDrive is an academic resource and learning intelligence platform. It brings study material, syllabus coverage, revision priorities, quizzes, analytics, and an AI study assistant into one focused workspace.
+StudentDrive is an academic resource and learning intelligence platform. The current phase establishes its React, Express, and MySQL foundation.
 
 ## The problem it solves
 
@@ -20,8 +20,9 @@ Students often have resources spread across WhatsApp, Google Classroom, email, l
 ## Technology
 
 - Frontend: React, Vite, React Router, Bootstrap, Bootstrap Icons
-- Backend: Node.js, Express, CORS
-- Future: MongoDB, document parsing, LLM/RAG integration
+- Backend: Node.js, Express, mysql2, CORS
+- Database: MySQL
+- Future: authentication, document parsing, and LLM/RAG integration
 
 ## Project structure
 
@@ -33,7 +34,8 @@ StudentDrive/
 │       ├── data/         Mock academic data
 │       ├── pages/        Route-level screens
 │       └── services/     API-shaped placeholder functions
-├── backend/              Express server and future API modules
+├── backend/              Express server, routes, controllers, models, and middleware
+├── database/schema.sql   Normalized MySQL schema
 ├── data/                 Development datasets, kept outside app logic
 └── README.md
 ```
@@ -55,7 +57,13 @@ In another terminal:
 ```bash
 cd backend
 npm install
-npm start
+npm run dev
+```
+
+Before starting it, copy the values in `backend/.env.example` to `backend/.env` and set the local MySQL password. Create the schema with:
+
+```bash
+mysql -u root -p < database/schema.sql
 ```
 
 The API runs at `http://localhost:5000`. Check `http://localhost:5000/api/health` for:
@@ -63,9 +71,28 @@ The API runs at `http://localhost:5000`. Check `http://localhost:5000/api/health
 ```json
 {
   "success": true,
-  "message": "StudentDrive API is running"
+  "message": "StudentDrive API is running",
+  "database": "connected"
 }
 ```
+
+## Foundation architecture
+
+```text
+React
+  ↓
+REST API
+  ↓
+Express
+  ↓
+mysql2 connection pool
+  ↓
+MySQL
+```
+
+The backend starts only after a `SELECT 1` connection test succeeds. The health endpoint repeats that test. Route modules are present for auth, subjects, resources, folders, tags, and syllabus, but their feature handlers intentionally return `501 Not Implemented` until the next phase.
+
+The schema contains `users`, `subjects`, `folders`, `resources`, `tags`, `resource_tags`, and `syllabus_topics`. Foreign keys keep ownership relationships clear, while `resource_tags` models the resource/tag many-to-many relationship. Passwords are represented only by `password_hash`; files are represented by metadata and `file_path`, never stored as database blobs.
 
 ## Where to change things
 
@@ -73,6 +100,10 @@ The API runs at `http://localhost:5000`. Check `http://localhost:5000/api/health
 - Add future fetch calls in `frontend/src/services/api.js`, not inside page components.
 - Add Express routes, controllers, models, and services under the matching `backend/` folders.
 
+## Connection test in the frontend
+
+The dashboard includes a small development status section that calls `GET /api/health` through `frontend/src/services/api.js`. It reports whether the backend and database are connected. The existing academic UI and mock feature service remain unchanged.
+
 ## Future work
 
-The next backend phase can add authentication, MongoDB persistence, file uploads, document text extraction, and syllabus-topic mapping. The AI assistant can then use retrieval-augmented generation (RAG) to answer questions from a student's uploaded resources. Analytics can combine resource mapping, quiz outcomes, and revision history to calculate coverage and exam readiness.
+The next backend phase can add authentication, file uploads, document text extraction, and syllabus-topic mapping. The AI assistant can then use retrieval-augmented generation (RAG) to answer questions from a student's uploaded resources. Analytics can combine resource mapping, quiz outcomes, and revision history to calculate coverage and exam readiness.

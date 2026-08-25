@@ -1,5 +1,13 @@
 import { subjects, resources, syllabusUnits, knowledgeGaps } from '../data/mockData';
 
+export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+export async function checkBackend() {
+	const response = await fetch(`${BASE_URL}/health`);
+	if (!response.ok) throw new Error('Backend health check failed');
+	return response.json();
+}
+
 // These functions mirror the future REST API and use mock data for now.
 export async function getSubjects() { return subjects; }
 export async function getSubject(id) { return subjects.find((subject) => subject.id === Number(id)); }

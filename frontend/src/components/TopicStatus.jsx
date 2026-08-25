@@ -1,2 +1,7 @@
-function TopicStatus({ topic, compact = false }) { const badgeClass = topic.status === 'Covered' ? 'covered' : topic.status === 'Partial' ? 'partial' : 'missing'; return <div className={`topic-row ${compact ? 'compact' : ''}`}><div><strong>{topic.name}</strong>{!compact && <small>{topic.resources.length ? `${topic.resources.length} related resource${topic.resources.length > 1 ? 's' : ''}` : 'No resources linked'}</small>}</div><span className={`topic-badge ${badgeClass}`}>{topic.status}</span>{!compact && <button className="text-button">Study topic <i className="bi bi-arrow-right" /></button>}</div>; }
+function TopicStatus({ topic, compact = false }) {
+     const badgeClass = topic.status === 'Covered' ? 'covered' : topic.status === 'Partial' ? 'partial' : 'missing';
+      return <div className={`topic-row ${compact ? 'compact' : ''}`}>
+        <div><strong>{topic.name}</strong>{!compact && <small>{topic.resources.length ? `${topic.resources.length} related resource${topic.resources.length > 1 ? 's' : ''}` : 'No resources linked'}</small>}</div>
+        <span className={`topic-badge ${badgeClass}`}>{topic.status}</span>{!compact && <button className="text-button">Study topic <i className="bi bi-arrow-right" /></button>}
+        </div>; }
 export default TopicStatus;
