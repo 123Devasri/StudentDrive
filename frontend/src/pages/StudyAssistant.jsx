@@ -1,56 +1,131 @@
 import { useEffect, useState } from 'react';
-import { askAssistant, getSubjects } from '../services/api';
+import { askAssistantStream, getAssistantHealth, getSubjects } from '../services/api';
+
+const UNITS = [
+    { id: '1', name: 'Unit 1' },
+    { id: '2', name: 'Unit 2' },
+    { id: '3', name: 'Unit 3' },
+    { id: '4', name: 'Unit 4' },
+    { id: '5', name: 'Unit 5' },
+];
 
 function StudyAssistant() {
     const [subjects, setSubjects] = useState([]);
     const [subjectId, setSubjectId] = useState('');
+    const [unitId, setUnitId] = useState('1');
     const [question, setQuestion] = useState('');
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [thinking, setThinking] = useState(false);
     const [error, setError] = useState('');
+    const [aiHealth, setAiHealth] = useState({ online: false, activeModel: null, modelError: null });
 
     useEffect(() => {
-        async function loadSubjects() {
+        async function loadInitialData() {
             try {
-                const response = await getSubjects();
-                setSubjects(response.subjects);
-                setSubjectId(response.subjects[0]?.id || '');
+                const [subjectsRes, healthRes] = await Promise.all([
+                    getSubjects().catch(() => ({ subjects: [] })),
+                    getAssistantHealth().catch(() => ({ online: false, modelError: 'AI Assistant health check failed.' })),
+                ]);
+                setSubjects(subjectsRes.subjects || []);
+                setSubjectId(subjectsRes.subjects[0]?.id || '');
+                if (healthRes) {
+                    setAiHealth({
+                        online: healthRes.online,
+                        activeModel: healthRes.activeModel,
+                        modelError: healthRes.modelError,
+                    });
+                }
             } catch (requestError) {
-                setError('Unable to load subjects.');
+                setError('Unable to load initial workspace data.');
             } finally {
                 setLoading(false);
             }
         }
-        loadSubjects();
+        loadInitialData();
     }, []);
+
+    function handleSubjectChange(event) {
+        setSubjectId(event.target.value);
+        setMessages([]);
+        setError('');
+    }
+
+    function handleUnitChange(event) {
+        setUnitId(event.target.value);
+        setMessages([]);
+        setError('');
+    }
 
     async function handleSubmit(event) {
         event.preventDefault();
-        if (!question.trim() || !subjectId) return;
+        if (!question.trim() || !subjectId || !unitId || thinking) return;
+
         const currentQuestion = question.trim();
         setQuestion('');
         setThinking(true);
         setError('');
-        setMessages((previousMessages) => [
-            ...previousMessages,
-            { role: 'student', text: currentQuestion },
+
+        const studentMsg = { role: 'student', text: currentQuestion };
+        const assistantMsgIndex = messages.length + 1;
+
+        setMessages((prev) => [
+            ...prev,
+            studentMsg,
+            { role: 'assistant', text: '', sources: [], streaming: true },
         ]);
+
         try {
-            const response = await askAssistant(currentQuestion, subjectId);
-            setMessages((previousMessages) => [
-                ...previousMessages,
-                {
-                    role: 'assistant',
-                    text: response.clarification || response.answer,
-                    options: response.options || [],
-                    sources: response.sources,
+            await askAssistantStream(currentQuestion, subjectId, unitId, {
+                onMetadata: (metadata) => {
+                    setMessages((prev) => {
+                        const updated = [...prev];
+                        if (updated[assistantMsgIndex]) {
+                            updated[assistantMsgIndex] = {
+                                ...updated[assistantMsgIndex],
+                                sources: metadata.sources || [],
+                            };
+                        }
+                        return updated;
+                    });
                 },
-            ]);
+                onToken: (token) => {
+                    setMessages((prev) => {
+                        const updated = [...prev];
+                        if (updated[assistantMsgIndex]) {
+                            updated[assistantMsgIndex] = {
+                                ...updated[assistantMsgIndex],
+                                text: updated[assistantMsgIndex].text + token,
+                            };
+                        }
+                        return updated;
+                    });
+                },
+                onDone: (donePayload) => {
+                    setMessages((prev) => {
+                        const updated = [...prev];
+                        if (updated[assistantMsgIndex]) {
+                            updated[assistantMsgIndex] = {
+                                ...updated[assistantMsgIndex],
+                                text: donePayload.answer || updated[assistantMsgIndex].text,
+                                sources: donePayload.sources || updated[assistantMsgIndex].sources,
+                                streaming: false,
+                            };
+                        }
+                        return updated;
+                    });
+                    setThinking(false);
+                },
+                onError: (errMsg) => {
+                    setError(errMsg || 'Streaming response failed.');
+                    setThinking(false);
+                    setMessages((prev) => prev.slice(0, assistantMsgIndex));
+                },
+            });
         } catch (requestError) {
-            setError(requestError.message || 'Unable to generate a response.');
-        } finally {
+            setError(requestError.message || 'Unable to generate response.');
             setThinking(false);
+            setMessages((prev) => prev.slice(0, assistantMsgIndex));
         }
     }
 
@@ -65,10 +140,19 @@ function StudyAssistant() {
                         AI Study Assistant
                     </h1>
                     <p className="lead-copy">
-                        Ask questions using your selected subject and syllabus context.
+                        Ask questions strictly grounded in the notes uploaded for your selected Subject and Unit.
                     </p>
                 </div>
             </div>
+
+            {aiHealth.modelError && (
+                <div className="alert alert-warning d-flex align-items-center justify-content-between mb-3" role="alert">
+                    <div>
+                        <i className="bi bi-exclamation-triangle-fill me-2" />
+                        <strong>Ollama Model Notice:</strong> {aiHealth.modelError}
+                    </div>
+                </div>
+            )}
 
             {error && (
                 <div className="alert alert-danger">
@@ -78,7 +162,7 @@ function StudyAssistant() {
 
             {loading && (
                 <p className="text-muted">
-                    Loading subjects...
+                    Loading subjects and checking AI engine health...
                 </p>
             )}
 
@@ -95,27 +179,60 @@ function StudyAssistant() {
 
             {!loading && subjects.length > 0 && (
                 <section className="panel chat-panel">
-                    <div className="chat-header">
-                        <strong>
-                            Academic context
-                        </strong>
-                        <select
-                            aria-label="Assistant subject"
-                            value={subjectId}
-                            onChange={(event) => setSubjectId(event.target.value)}
-                        >
-                            {subjects.map((subject) => (
-                                <option key={subject.id} value={subject.id}>
-                                    {subject.name}
-                                </option>
-                            ))}
-                        </select>
+                    <div className="chat-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div className="d-flex align-items-center gap-3">
+                            <strong>
+                                Academic Context:
+                            </strong>
+                            <div className="d-flex align-items-center gap-2">
+                                <label className="text-muted small mb-0">Subject:</label>
+                                <select
+                                    aria-label="Assistant subject"
+                                    className="academic-select"
+                                    value={subjectId}
+                                    onChange={handleSubjectChange}
+                                >
+                                    {subjects.map((subject) => (
+                                        <option key={subject.id} value={subject.id}>
+                                            {subject.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                                <label className="text-muted small mb-0">Unit:</label>
+                                <select
+                                    aria-label="Assistant unit"
+                                    className="academic-select"
+                                    value={unitId}
+                                    onChange={handleUnitChange}
+                                >
+                                    {UNITS.map((unit) => (
+                                        <option key={unit.id} value={unit.id}>
+                                            {unit.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {aiHealth.activeModel && (
+                            <span className="badge bg-light text-dark border">
+                                <i className="bi bi-cpu me-1 text-success" />
+                                Model: {aiHealth.activeModel}
+                            </span>
+                        )}
                     </div>
 
                     <div className="chat-body">
-                        {messages.length === 0 && (
+                        {!unitId && (
                             <p className="text-muted">
-                                Ask a question about this subject.
+                                Please select a subject and unit before asking a question.
+                            </p>
+                        )}
+                        {unitId && messages.length === 0 && (
+                            <p className="text-muted">
+                                Ask a question about the notes uploaded for Unit {unitId}.
                             </p>
                         )}
                         {messages.map((message, index) => (
@@ -124,46 +241,42 @@ function StudyAssistant() {
                                     <span className="message-author">
                                         {message.role === 'student' ? 'You' : 'Study Assistant'}
                                     </span>
-                                    <p>
+                                    <p style={{ whiteSpace: 'pre-wrap' }}>
                                         {message.text}
+                                        {message.streaming && (
+                                            <span className="spinner-grow spinner-grow-sm ms-2 text-success" role="status" title="Generating answer..." />
+                                        )}
                                     </p>
-                                    {message.options?.map((option) => (
-                                        <button
-                                            className="secondary-button me-2"
-                                            key={option}
-                                            onClick={() => setQuestion(`Explain ${option}`)}
-                                        >
-                                            {option}
-                                        </button>
-                                    ))}
-                                    {message.role === 'assistant' && message.sources?.length > 0 && (
-                                        <small>
-                                            Sources: {message.sources.join(', ')}
-                                        </small>
-                                    )}
+                                     {message.role === 'assistant' && message.sources?.length > 0 && (
+                                         <div className="sources-list mt-2 text-start">
+                                             <small className="text-muted fw-bold display-block">Sources:</small>
+                                             <ul className="mb-0 ps-3 small text-muted">
+                                                 {message.sources.map((source, srcIdx) => (
+                                                     <li key={srcIdx}>
+                                                         {source.fileName} — {source.label || (source.slideNumber ? `Slide ${source.slideNumber}` : `Page ${source.pageNumber || 1}`)}
+                                                     </li>
+                                                 ))}
+                                             </ul>
+                                         </div>
+                                     )}
                                 </div>
                             </div>
                         ))}
-                        {thinking && (
-                            <p className="text-muted">
-                                Thinking...
-                            </p>
-                        )}
                     </div>
 
                     <form className="chat-input" onSubmit={handleSubmit}>
                         <input
                             aria-label="Question"
-                            placeholder="Ask a question..."
+                            placeholder={unitId ? `Ask a question about Unit ${unitId}...` : "Select a unit to ask a question..."}
                             value={question}
                             onChange={(event) => setQuestion(event.target.value)}
-                            disabled={thinking}
+                            disabled={thinking || !unitId}
                         />
                         <button
                             className="primary-button"
-                            disabled={thinking || !question.trim()}
+                            disabled={thinking || !question.trim() || !unitId}
                         >
-                            {thinking ? 'Thinking...' : 'Ask'}
+                            {thinking ? 'Generating...' : 'Ask'}
                         </button>
                     </form>
                 </section>

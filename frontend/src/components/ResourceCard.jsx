@@ -76,6 +76,14 @@ function ResourceCard({
                         <span className="context-item">
                             <strong>Folder:</strong> {resource.folderName ? resource.folderName : 'No folder'}
                         </span>
+                        {resource.unitId && (
+                            <>
+                                <span className="context-divider">|</span>
+                                <span className="context-item">
+                                    <strong>Unit:</strong> Unit {resource.unitId}
+                                </span>
+                            </>
+                        )}
                     </div>
 
                     {resource.description && (

@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS resources (
   user_id INT UNSIGNED NOT NULL,
   subject_id INT UNSIGNED NOT NULL,
   folder_id INT UNSIGNED,
+  unit_id INT UNSIGNED,
   original_name VARCHAR(255) NOT NULL,
   stored_name VARCHAR(255) NOT NULL,
   file_type VARCHAR(100),
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS resources (
   INDEX idx_resources_user_id (user_id),
   INDEX idx_resources_subject_id (subject_id),
   INDEX idx_resources_folder_id (folder_id),
+  INDEX idx_resources_unit_id (unit_id),
   CONSTRAINT fk_resources_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_resources_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
   CONSTRAINT fk_resources_folder FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
@@ -90,4 +92,24 @@ CREATE TABLE IF NOT EXISTS resource_syllabus_topics (
   PRIMARY KEY (resource_id, syllabus_topic_id),
   CONSTRAINT fk_resource_topics_resource FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE,
   CONSTRAINT fk_resource_topics_topic FOREIGN KEY (syllabus_topic_id) REFERENCES syllabus_topics(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS document_chunks (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  resource_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  subject_id INT UNSIGNED NOT NULL,
+  folder_id INT UNSIGNED DEFAULT NULL,
+  unit_id INT UNSIGNED NOT NULL,
+  chunk_index INT NOT NULL,
+  page_number INT DEFAULT NULL,
+  slide_number INT DEFAULT NULL,
+  chunk_text TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_chunks_scoping (user_id, subject_id, unit_id),
+  INDEX idx_chunks_resource (resource_id),
+  CONSTRAINT fk_chunks_resource FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE,
+  CONSTRAINT fk_chunks_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_chunks_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_chunks_folder FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
 );

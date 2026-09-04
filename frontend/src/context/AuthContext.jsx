@@ -38,7 +38,11 @@ export function AuthProvider({ children }) {
     if (token) await logoutUser(token).catch(() => {});
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>;
+  function updateUser(updatedUser) {
+    setUser(updatedUser);
+  }
+
+  return <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { return useContext(AuthContext); }

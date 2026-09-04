@@ -74,7 +74,67 @@ export async function deleteSyllabusTopic(topicId) { return request(`/syllabus/$
 export async function linkResourceToTopic(topicId, resourceId) { return request(`/syllabus/topics/${topicId}/resources`, { method: 'POST', body: JSON.stringify({ resourceId }) }); }
 export async function unlinkResourceFromTopic(topicId, resourceId) { return request(`/syllabus/topics/${topicId}/resources/${resourceId}`, { method: 'DELETE' }); }
 export async function getDashboard() { return request('/dashboard'); }
-export async function askAssistant(question, subjectId) { return request('/assistant/ask', { method: 'POST', body: JSON.stringify({ question, subjectId }) }); }
+export async function getAssistantHealth() { return request('/assistant/health'); }
+export async function askAssistant(question, subjectId, unitId) { return request('/assistant/ask', { method: 'POST', body: JSON.stringify({ question, subjectId: Number(subjectId), unitId: Number(unitId) }) }); }
+export async function askAssistantStream(question, subjectId, unitId, { onMetadata, onToken, onError, onDone }) {
+	const token = getToken();
+	const response = await fetch(`${BASE_URL}/assistant/ask-stream`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`,
+		},
+		body: JSON.stringify({ question, subjectId: Number(subjectId), unitId: Number(unitId) }),
+	});
+
+	if (!response.ok) {
+		const errorJson = await response.json().catch(() => ({}));
+		throw new Error(errorJson.message || `Server error (HTTP ${response.status})`);
+	}
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder('utf-8');
+	let buffer = '';
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		buffer += decoder.decode(value, { stream: true });
+		const parts = buffer.split('\n\n');
+		buffer = parts.pop() || '';
+
+		for (const part of parts) {
+			if (!part.trim()) continue;
+			let eventName = 'message';
+			let dataStr = '';
+
+			for (const line of part.split('\n')) {
+				if (line.startsWith('event: ')) {
+					eventName = line.slice(7).trim();
+				} else if (line.startsWith('data: ')) {
+					dataStr = line.slice(6).trim();
+				}
+			}
+
+			if (!dataStr) continue;
+
+			try {
+				const payload = JSON.parse(dataStr);
+				if (eventName === 'metadata' && onMetadata) {
+					onMetadata(payload);
+				} else if (eventName === 'token' && onToken) {
+					onToken(payload.token);
+				} else if (eventName === 'done' && onDone) {
+					onDone(payload);
+				} else if (eventName === 'error' && onError) {
+					onError(payload.message || 'Stream error');
+				}
+			} catch (e) {
+				// Ignore parse error
+			}
+		}
+	}
+}
 
 export async function getResource(resourceId) {
 	return request(`/resources/${resourceId}`);
@@ -124,6 +184,8 @@ export async function downloadResource(resourceId, fileName) {
 export function registerUser(data) { return request('/auth/register', { method: 'POST', body: JSON.stringify(data) }); }
 export function loginUser(data) { return request('/auth/login', { method: 'POST', body: JSON.stringify(data) }); }
 export function getCurrentUser(token) { return request('/auth/me', { headers: { Authorization: `Bearer ${token}` } }); }
+export function updateUserProfile(data) { return request('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }); }
+export function changePassword(data) { return request('/auth/change-password', { method: 'PUT', body: JSON.stringify(data) }); }
 export function logoutUser(token) { return request('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); }
 
 // These functions mirror the future REST API and use mock data for now.

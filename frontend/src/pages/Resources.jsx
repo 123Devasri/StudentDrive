@@ -22,6 +22,7 @@ import {
 const emptyResourceForm = {
     subjectId: '',
     folderId: '',
+    unitId: '',
     description: '',
     tagIds: [],
 };
@@ -35,6 +36,7 @@ function Resources() {
         search: '',
         subjectId: '',
         folderId: '',
+        unitId: '',
         tag: '',
         fileType: '',
     });
@@ -115,6 +117,7 @@ function Resources() {
                 ? {
                       subjectId: resource.subjectId,
                       folderId: resource.folderId || '',
+                      unitId: resource.unitId ? String(resource.unitId) : '',
                       description: resource.description || '',
                       tagIds: [],
                   }
@@ -205,6 +208,7 @@ function Resources() {
                 const response = await updateResource(editingResource.id, {
                     subjectId: Number(resourceForm.subjectId),
                     folderId: resourceForm.folderId ? Number(resourceForm.folderId) : null,
+                    unitId: resourceForm.unitId ? Number(resourceForm.unitId) : null,
                     description: resourceForm.description,
                 });
                 setResources((prev) =>
@@ -230,6 +234,9 @@ function Resources() {
                 formData.append('subjectId', resourceForm.subjectId);
                 if (resourceForm.folderId) {
                     formData.append('folderId', resourceForm.folderId);
+                }
+                if (resourceForm.unitId) {
+                    formData.append('unitId', resourceForm.unitId);
                 }
                 formData.append('description', resourceForm.description || '');
                 resourceForm.tagIds.forEach((tagId) => {
@@ -404,6 +411,7 @@ function Resources() {
             search: '',
             subjectId: '',
             folderId: '',
+            unitId: '',
             tag: '',
             fileType: '',
         });
@@ -545,6 +553,24 @@ function Resources() {
                                 {folder.name}
                             </option>
                         ))}
+                    </select>
+
+                    <select
+                        aria-label="Filter by unit"
+                        className="academic-select"
+                        value={filters.unitId}
+                        onChange={(event) =>
+                            setFilters({ ...filters, unitId: event.target.value })
+                        }
+                    >
+                        <option value="">
+                            All Units
+                        </option>
+                        <option value="1">Unit 1</option>
+                        <option value="2">Unit 2</option>
+                        <option value="3">Unit 3</option>
+                        <option value="4">Unit 4</option>
+                        <option value="5">Unit 5</option>
                     </select>
 
                     <select
@@ -1030,6 +1056,30 @@ function Resources() {
                                         {folder.name}
                                     </option>
                                 ))}
+                            </select>
+                        </div>
+
+                        <div className="mb-3">
+                            <label className="form-label" htmlFor="resourceUnitSelect">
+                                Unit (Optional)
+                            </label>
+                            <select
+                                id="resourceUnitSelect"
+                                className="form-select"
+                                value={resourceForm.unitId}
+                                onChange={(event) =>
+                                    setResourceForm({
+                                        ...resourceForm,
+                                        unitId: event.target.value,
+                                    })
+                                }
+                            >
+                                <option value="">No unit</option>
+                                <option value="1">Unit 1</option>
+                                <option value="2">Unit 2</option>
+                                <option value="3">Unit 3</option>
+                                <option value="4">Unit 4</option>
+                                <option value="5">Unit 5</option>
                             </select>
                         </div>
 

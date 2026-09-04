@@ -1,6 +1,6 @@
 import re
 
-def split_text_into_chunks(text: str, chunk_size: int = 800, overlap: int = 150) -> list:
+def split_text_into_chunks(text: str, chunk_size: int = 600, overlap: int = 120) -> list:
     """
     Splits text into chunks of roughly chunk_size characters with overlap,
     avoiding breaking sentences in the middle where possible.
@@ -27,11 +27,9 @@ def split_text_into_chunks(text: str, chunk_size: int = 800, overlap: int = 150)
                 combined = "\n\n".join(current_chunk).strip()
                 if combined:
                     chunks.append(combined)
-                # Keep last part for overlap
                 current_chunk = [paragraph]
                 current_len = p_len
             else:
-                # Paragraph itself is longer than chunk_size, split by sentences
                 sentences = re.split(r'(?<=[.?!])\s+', paragraph)
                 for sentence in sentences:
                     s_len = len(sentence)
@@ -52,7 +50,7 @@ def split_text_into_chunks(text: str, chunk_size: int = 800, overlap: int = 150)
     return chunks
 
 
-def process_document_pages(pages: list, user_id: int, subject_id: int, resource_id: int, resource_name: str) -> list:
+def process_document_pages(pages: list, user_id: int, subject_id: int, unit_id: int, resource_id: int, resource_name: str, folder_id: int = None) -> list:
     """
     Takes extracted pages and returns a list of chunk dicts with complete metadata.
     """
@@ -61,6 +59,8 @@ def process_document_pages(pages: list, user_id: int, subject_id: int, resource_
 
     for page_info in pages:
         page_num = page_info.get('page', 1)
+        page_number = page_info.get('page_number')
+        slide_number = page_info.get('slide_number')
         text = page_info.get('text', '')
         page_chunks = split_text_into_chunks(text)
 
@@ -68,12 +68,16 @@ def process_document_pages(pages: list, user_id: int, subject_id: int, resource_
             if not chunk_text.strip():
                 continue
             all_chunks.append({
-                'chunk_id': f"{resource_id}_{page_num}_{chunk_index}",
+                'chunk_id': f"{resource_id}_{chunk_index}",
                 'resource_id': resource_id,
                 'resource_name': resource_name,
-                'subject_id': subject_id,
                 'user_id': user_id,
+                'subject_id': subject_id,
+                'folder_id': folder_id,
+                'unit_id': unit_id,
                 'page': page_num,
+                'page_number': page_number,
+                'slide_number': slide_number,
                 'chunk_index': chunk_index,
                 'text': chunk_text.strip()
             })
