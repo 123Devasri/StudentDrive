@@ -188,6 +188,18 @@ export function updateUserProfile(data) { return request('/auth/profile', { meth
 export function changePassword(data) { return request('/auth/change-password', { method: 'PUT', body: JSON.stringify(data) }); }
 export function logoutUser(token) { return request('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); }
 
+export async function generateQuiz(subjectId, unitId, questionCount = 10, difficulty = 'Medium') {
+	return request('/quiz/generate', {
+		method: 'POST',
+		body: JSON.stringify({
+			subjectId: Number(subjectId),
+			unitId: Number(unitId),
+			questionCount: Number(questionCount),
+			difficulty,
+		}),
+	});
+}
+
 // These functions mirror the future REST API and use mock data for now.
 export async function getSyllabus() { return { topics: [] }; }
 export async function getAnalytics() { return { gaps: [] }; }

@@ -11,6 +11,7 @@ import tagRoutes from './routes/tagRoutes.js';
 import syllabusRoutes from './routes/syllabusRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import assistantRoutes from './routes/assistantRoutes.js';
+import quizRoutes from './routes/quizRoutes.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddleware.js';
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/syllabus', syllabusRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/assistant', assistantRoutes);
+app.use('/api/quiz', quizRoutes);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 

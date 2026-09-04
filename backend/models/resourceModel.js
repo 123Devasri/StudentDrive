@@ -123,3 +123,17 @@ export async function findDocumentChunksForUnit(userId, subjectId, unitId) {
   );
   return rows;
 }
+
+export async function findDiverseDocumentChunksForUnit(userId, subjectId, unitId, limit = 25) {
+  const [rows] = await pool.query(
+    `SELECT dc.id, dc.resource_id AS resourceId, r.original_name AS fileName,
+            dc.chunk_index AS chunkIndex, dc.page_number AS pageNumber,
+            dc.slide_number AS slideNumber, dc.chunk_text AS text
+     FROM document_chunks dc
+     JOIN resources r ON r.id = dc.resource_id
+     WHERE dc.user_id = ? AND dc.subject_id = ? AND dc.unit_id = ?
+     ORDER BY RAND() LIMIT ?`,
+    [userId, subjectId, unitId, Number(limit)]
+  );
+  return rows;
+}

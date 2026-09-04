@@ -1,10 +1,10 @@
 # StudentDrive - Ollama AI Study Assistant & Academic Platform
 
-StudentDrive is an academic resource and learning intelligence platform built with React, Express, MySQL, FAISS, and a NotebookLM-style grounded **Ollama AI Study Assistant** (Retrieval-Augmented Generation pipeline).
+StudentDrive is an academic resource and learning intelligence platform built with React, Express, MySQL, FAISS, and a **Ollama AI Study Assistant & Quiz Generator** (Retrieval-Augmented Generation pipeline).
 
 ## The Problem It Solves
 
-Students often have study materials spread across WhatsApp, Google Classroom, email, local folders, and cloud drives. StudentDrive organizes these resources by subject and unit, connecting them directly to a local, closed-knowledge **Ollama AI Assistant** that answers questions strictly grounded in the student's uploaded notes.
+Students often have study materials spread across WhatsApp, Google Classroom, email, local folders, and cloud drives. StudentDrive organizes these resources by subject and unit, connecting them directly to a local, closed-knowledge **Ollama AI Engine** that answers questions and generates practice quizzes strictly grounded in the student's uploaded notes.
 
 ## Features
 
@@ -17,6 +17,12 @@ Students often have study materials spread across WhatsApp, Google Classroom, em
   - Cross-user, cross-subject, and cross-unit document retrieval is strictly forbidden.
   - If no notes exist or evidence is insufficient, returns `"I couldn't find this information in the notes provided for this unit."` without using general LLM knowledge.
   - Displays file, page, and slide source citations (`Filename.pdf — Page X`, `Presentation.pptx — Slide Y`).
+- **AI Practice Quiz Generator (Zero Reprocessing)**:
+  - Generates multiple-choice practice quizzes strictly grounded in notes for the selected **Subject** and **Unit**.
+  - **Reuses existing stored chunks** in MySQL (`document_chunks`) and FAISS — zero document re-extraction or re-embedding during quiz generation.
+  - Custom quiz configuration: Question count (`5`, `10`, `15`) and Difficulty (`Easy`, `Medium`, `Hard`).
+  - Interactive quiz runner with step-through navigation, real-time score calculation, percentage metrics, and detailed answer reviews.
+  - Detailed answer explanations with page/slide citations (`OperatingSystems.pdf — Page 14`, `Deadlocks.pptx — Slide 8`).
 - **Hybrid Retrieval RAG Pipeline**:
   - Document extraction (PDF, PPTX, DOCX, TXT) via Python (`PyMuPDF`, `python-pptx`, `python-docx`).
   - Slide-level (PPTX) and page-level (PDF) chunking with metadata tracking.
@@ -42,13 +48,14 @@ StudentDrive/
 ├── frontend/             # React SPA with Vite, Bootstrap 5 & API client
 │   └── src/
 │       ├── components/   # ResourceCard, SubjectCard, Modal, Layout, Navbar, Sidebar
-│       ├── pages/        # Dashboard, Resources, Subjects, Syllabus, StudyAssistant, Settings
-│       └── services/     # Centralized Fetch API client with SSE streaming support
+│       ├── pages/        # Dashboard, Resources, Subjects, Syllabus, StudyAssistant, Quiz, Settings
+│       └── services/     # Centralized Fetch API client with SSE streaming & quiz support
 ├── backend/              # Express server, controllers, models, middleware & routes
 │   ├── config/           # MySQL connection pool
-│   ├── controllers/      # assistantController, resourceController, authController, etc.
+│   ├── controllers/      # assistantController, quizController, resourceController, etc.
 │   ├── models/           # Resource, document_chunks, Folder, Subject, User Data Access Layer
-│   ├── services/         # aiService (Local RAG search, FAISS integration & Ollama interface)
+│   ├── routes/           # assistantRoutes, quizRoutes, resourceRoutes, authRoutes, etc.
+│   ├── services/         # aiService (Local RAG search, Quiz generator & Ollama interface)
 │   └── uploads/          # Physical file uploads store
 ├── ai/                   # Standalone Python Local RAG & Vector Embedding Engine
 │   ├── chunker.py        # Sliding-window document text chunking (slide/page preserved)
@@ -108,7 +115,7 @@ Open the URL shown in terminal (usually `http://localhost:5173`).
 ## Grounded RAG Architecture Flow
 
 ```text
-Student Question + Selected Subject + Selected Unit
+Student Request (Ask Question / Generate Quiz)
                   │
                   ▼
          JWT Authentication (userId)
@@ -121,21 +128,15 @@ Student Question + Selected Subject + Selected Unit
             ├── (No notes) ──► Return: "There are no notes available for this unit yet."
             └── (Notes exist)
                   │
-                  ▼
-         Hybrid Retrieval (FAISS Vector Search + Keyword Term Match)
-         Filter: userId + subjectId + unitId
-                  │
-                  ▼
-         Validate Retrieved Chunks
-            ├── (Below Threshold / Empty) ──► Return: "I couldn't find this information in the notes provided for this unit."
-            └── (Relevant Chunks Found)
-                  │
-                  ▼
-         NotebookLM Grounded System Prompt Construction
-                  │
-                  ▼
-         Ollama Local HTTP REST API (http://127.0.0.1:11434)
-                  │
-                  ▼
-         Real-Time Token Streaming (SSE) + Slide/Page Citations
+                  ┌───────────────────────┴───────────────────────┐
+                  ▼                                               ▼
+         Study Assistant Chat                            Quiz Generator
+                  │                                               │
+       Hybrid Retrieval (FAISS + KW)                   Diverse Chunk Sampling (MySQL)
+                  │                                               │
+                  ▼                                               ▼
+       Grounded Prompt + SSE Stream                    Ollama MCQ Prompt + JSON Output
+                  │                                               │
+                  ▼                                               ▼
+       Token Stream + Page/Slide Citations             Interactive Quiz + Answer Review
 ```

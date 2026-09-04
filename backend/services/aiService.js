@@ -96,7 +96,7 @@ export async function resolveOllamaModel() {
   return fallbackModel;
 }
 
-export async function askLocalLLMStream({ prompt, onToken }) {
+export async function askLocalLLMStream({ prompt, onToken, timeoutMs = 90000, jsonMode = false, numPredict = null }) {
   // Option 1: Google Gemini API
   if (process.env.GEMINI_API_KEY) {
     try {
@@ -178,7 +178,23 @@ export async function askLocalLLMStream({ prompt, onToken }) {
   let firstTokenTime = null;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const reqPayload = {
+    model: modelToUse,
+    prompt,
+    stream: true,
+    options: {
+      temperature: 0.2,
+    },
+  };
+
+  if (jsonMode) {
+    reqPayload.format = 'json';
+  }
+  if (numPredict) {
+    reqPayload.options.num_predict = numPredict;
+  }
 
   try {
     const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -187,11 +203,7 @@ export async function askLocalLLMStream({ prompt, onToken }) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: modelToUse,
-        prompt,
-        stream: true,
-      }),
+      body: JSON.stringify(reqPayload),
     });
 
     if (!response.ok) {
@@ -241,7 +253,7 @@ export async function askLocalLLMStream({ prompt, onToken }) {
     return fullAnswer.trim() || FALLBACK_RESPONSE;
   } catch (error) {
     if (error.name === 'AbortError') {
-      const timeoutErr = new Error('Local Ollama LLM request timed out after 45 seconds');
+      const timeoutErr = new Error(`Local Ollama LLM request timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
       timeoutErr.statusCode = 504;
       throw timeoutErr;
     }
@@ -251,8 +263,8 @@ export async function askLocalLLMStream({ prompt, onToken }) {
   }
 }
 
-export async function askLocalLLM({ prompt }) {
-  return askLocalLLMStream({ prompt, onToken: null });
+export async function askLocalLLM({ prompt, timeoutMs = 90000, jsonMode = false, numPredict = null }) {
+  return askLocalLLMStream({ prompt, onToken: null, timeoutMs, jsonMode, numPredict });
 }
 
 export async function answerQuestion({ question, subjectName, unitId, chunks, onToken = null }) {
@@ -291,4 +303,122 @@ QUESTION:
 ${question}`;
 
   return askLocalLLMStream({ prompt, onToken });
+}
+
+export async function generateQuizFromChunks({ subjectName, unitId, difficulty = 'Medium', questionCount = 10, chunks }) {
+  if (!chunks || chunks.length === 0) {
+    throw new Error('No chunks available to generate a quiz.');
+  }
+
+  const numQuestions = Math.min(Math.max(Number(questionCount) || 5, 3), 15);
+  const calculatedNumPredict = Math.min(Math.max(numQuestions * 160 + 300, 900), 2048);
+
+  const formattedContext = chunks
+    .slice(0, 10)
+    .map((chunk, index) => {
+      const pageInfo = chunk.slideNumber != null ? `Slide ${chunk.slideNumber}` : `Page ${chunk.pageNumber || 1}`;
+      const snippet = chunk.text && chunk.text.length > 350 ? chunk.text.slice(0, 350) + '...' : (chunk.text || '');
+      return `[Chunk ${index + 1} - Source: ${chunk.fileName || 'Notes.pdf'}, ${pageInfo}]\n${snippet}`;
+    })
+    .join('\n\n');
+
+  const prompt = `You are the quiz generator for StudentDrive.
+
+Generate multiple-choice questions ONLY from the supplied CONTEXT.
+
+The CONTEXT consists of chunks extracted from the student's uploaded notes.
+
+Rules:
+1. Use ONLY the supplied CONTEXT.
+2. Do NOT use outside knowledge.
+3. Do NOT use your pretrained knowledge to add information.
+4. Do NOT invent facts.
+5. Do NOT create a question unless its answer can be directly supported by the CONTEXT.
+6. Generate exactly ${numQuestions} questions.
+7. Each question must have exactly 4 options.
+8. Each question must have exactly one correct answer.
+9. Distractors must be plausible but incorrect according to the CONTEXT.
+10. Avoid generating duplicate or nearly identical questions.
+11. Cover different concepts from the supplied chunks where possible.
+12. Include the source file and page/slide for every question.
+13. Keep question texts, options, and explanations concise (1 short sentence max per field).
+14. Difficulty level: ${difficulty}.
+    - EASY: Direct definitions and basic recall.
+    - MEDIUM: Concept understanding and comparisons.
+    - HARD: Multi-concept reasoning answerable strictly from the notes.
+
+REQUIRED OUTPUT FORMAT:
+Return ONLY valid JSON matching this exact structure with NO markdown formatting, NO \`\`\`json code blocks, and NO commentary:
+
+{
+  "questions": [
+    {
+      "question": "What is ...?",
+      "options": [
+        "Option A",
+        "Option B",
+        "Option C",
+        "Option D"
+      ],
+      "correctAnswer": "Option B",
+      "explanation": "Explanation based strictly on the notes.",
+      "source": {
+        "fileName": "OperatingSystems.pdf",
+        "pageNumber": 14,
+        "slideNumber": null
+      }
+    }
+  ]
+}
+
+SUBJECT:
+${subjectName}
+
+UNIT:
+Unit ${unitId}
+
+CONTEXT:
+${formattedContext}`;
+
+  const rawResult = await askLocalLLM({ prompt, timeoutMs: 120000, jsonMode: true, numPredict: calculatedNumPredict });
+
+  let jsonString = rawResult.trim();
+  const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    jsonString = jsonMatch[0];
+  }
+
+  // Attempt 1: Direct JSON parse
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      return parsed.questions;
+    }
+  } catch (parseErr) {
+    console.warn(`[QUIZ WARNING] Direct JSON parse failed: ${parseErr.message}. Attempting partial recovery...`);
+  }
+
+  // Attempt 2: Recover completed question objects if response was truncated mid-stream
+  const recoveredQuestions = [];
+  const questionObjectRegex = /\{\s*"question"\s*:\s*"[\s\S]*?"\s*,\s*"options"\s*:\s*\[[\s\S]*?\]\s*,\s*"correctAnswer"\s*:\s*"[\s\S]*?"\s*,\s*"explanation"\s*:\s*"[\s\S]*?"\s*,\s*"source"\s*:\s*\{[\s\S]*?\}\s*\}/g;
+
+  let match;
+  while ((match = questionObjectRegex.exec(rawResult)) !== null) {
+    try {
+      const qObj = JSON.parse(match[0]);
+      if (qObj && qObj.question && Array.isArray(qObj.options) && qObj.correctAnswer) {
+        recoveredQuestions.push(qObj);
+      }
+    } catch (e) {
+      // Ignore invalid individual question block
+    }
+  }
+
+  if (recoveredQuestions.length > 0) {
+    console.log(`[QUIZ RECOVERY SUCCESS] Recovered ${recoveredQuestions.length} complete questions from LLM response.`);
+    return recoveredQuestions;
+  }
+
+  console.warn(`[QUIZ RAW OUTPUT]: ${rawResult.slice(0, 400)}...`);
+  throw new Error('Failed to parse structured quiz from LLM response.');
 }
